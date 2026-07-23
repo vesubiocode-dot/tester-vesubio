@@ -1,0 +1,1140 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tester_Vesubio</title>
+
+    <!-- Librerías externas -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+
+    <!-- Firebase (Auth + Firestore) -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+
+    <!-- Google Identity Services (login con Google) -->
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+
+    <style>
+        :root {
+            --verde-bosque: #009b3a;
+            --amarillo-brasil: #fed100;
+            --azul-cielo: #002776;
+            --verde-claro: #7ed957;
+            --crema: #fffdf5;
+            --gris-oscuro: #1a1a1a;
+            --naranja-energia: #ff6b35;
+            --sombra: rgba(0, 39, 118, 0.15);
+            --gris-borde: #e2e2e2;
+            --gris-texto: #6b6b6b;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background:
+                radial-gradient(circle at 20% 30%, rgba(0, 155, 58, 0.07) 0%, transparent 50%),
+                radial-gradient(circle at 80% 70%, rgba(254, 209, 0, 0.07) 0%, transparent 50%),
+                var(--crema);
+            color: var(--gris-oscuro);
+            min-height: 100vh;
+            line-height: 1.6;
+        }
+
+        /* ====== HEADER ====== */
+        header {
+            background: linear-gradient(135deg, var(--verde-bosque) 0%, var(--azul-cielo) 100%);
+            color: white;
+            padding: 1.5rem 1rem;
+            box-shadow: 0 4px 20px var(--sombra);
+            position: relative;
+            overflow: hidden;
+        }
+
+        header::before {
+            content: "";
+            position: absolute;
+            top: -50%; left: -50%;
+            width: 200%; height: 200%;
+            background: repeating-linear-gradient(45deg, transparent, transparent 35px,
+                rgba(254, 209, 0, 0.04) 35px, rgba(254, 209, 0, 0.04) 70px);
+            animation: moverFondo 25s linear infinite;
+        }
+
+        @keyframes moverFondo {
+            from { transform: translate(0, 0); }
+            to { transform: translate(35px, 35px); }
+        }
+
+        .header-contenido {
+            position: relative; z-index: 1;
+            display: flex; align-items: center; justify-content: space-between;
+            gap: 1rem; flex-wrap: wrap; max-width: 1100px; margin: 0 auto;
+        }
+
+        .logo-titulo { display: flex; align-items: center; gap: 0.9rem; }
+
+        .logo-marca {
+            width: 52px; height: 52px; background: white; border-radius: 14px;
+            display: flex; align-items: center; justify-content: center;
+            box-shadow: 0 4px 14px rgba(0,0,0,0.2); flex-shrink: 0;
+        }
+        .logo-marca svg { width: 36px; height: 36px; }
+
+        h1 { font-size: 1.9rem; font-weight: 800; letter-spacing: 1px; text-shadow: 2px 2px 4px rgba(0,0,0,0.3); line-height: 1.1; }
+        h1 .accent { color: var(--amarillo-brasil); text-shadow: 2px 2px 0 var(--gris-oscuro); }
+        .subtitulo { margin-top: 0.2rem; font-size: 0.85rem; opacity: 0.92; font-style: italic; }
+
+        /* ====== INFO USUARIO ====== */
+        .info-usuario {
+            display: flex; align-items: center; gap: 0.75rem;
+            background: rgba(255,255,255,0.16); padding: 0.45rem 0.8rem;
+            border-radius: 50px; backdrop-filter: blur(8px);
+        }
+        .avatar { width: 38px; height: 38px; border-radius: 50%; object-fit: cover; border: 2px solid var(--amarillo-brasil); background: var(--amarillo-brasil); }
+        .avatar-iniciales {
+            width: 38px; height: 38px; border-radius: 50%; background: var(--amarillo-brasil);
+            color: var(--gris-oscuro); display: flex; align-items: center; justify-content: center;
+            font-weight: 700; font-size: 1rem; border: 2px solid var(--amarillo-brasil);
+        }
+        .info-usuario .nombre { font-weight: 600; font-size: 0.88rem; }
+        .info-usuario .email { font-size: 0.72rem; opacity: 0.85; }
+        .btn-logout {
+            background: rgba(255,255,255,0.2); border: none; color: white;
+            padding: 0.4rem 0.85rem; border-radius: 50px; cursor: pointer;
+            font-size: 0.8rem; font-weight: 500; transition: background 0.2s; font-family: inherit;
+        }
+        .btn-logout:hover { background: rgba(255,255,255,0.35); }
+
+        /* ====== PANTALLA LOGIN ====== */
+        .pantalla-login { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 1rem; text-align: center; }
+        .login-card { background: white; border-radius: 22px; padding: 2.8rem 2rem; max-width: 420px; width: 100%; box-shadow: 0 20px 60px rgba(0,0,0,0.25); border-top: 6px solid var(--amarillo-brasil); }
+        .login-card .logo-marca { margin: 0 auto 1.3rem; width: 84px; height: 84px; border-radius: 20px; }
+        .login-card .logo-marca svg { width: 60px; height: 60px; }
+        .login-card h2 { color: var(--azul-cielo); margin-bottom: 0.5rem; font-size: 1.5rem; }
+        .login-card p { color: var(--gris-texto); margin-bottom: 1.8rem; font-size: 0.92rem; }
+        #contenedor-google-btn { display: flex; justify-content: center; min-height: 44px; margin-bottom: 1rem; }
+        .btn-google {
+            width: 100%; background: white; color: var(--gris-oscuro); border: 2px solid var(--gris-borde);
+            padding: 0.75rem; border-radius: 10px; cursor: pointer; font-size: 0.95rem; font-weight: 600;
+            transition: all 0.2s; font-family: inherit; display: inline-flex; align-items: center; justify-content: center; gap: 0.6rem;
+        }
+        .btn-google:hover { border-color: var(--azul-cielo); background: #f8faff; }
+        .btn-google svg { width: 20px; height: 20px; }
+        .btn-demo { width: 100%; background: linear-gradient(135deg, var(--verde-bosque), var(--verde-claro)); color: white; border: none; padding: 0.8rem; border-radius: 10px; cursor: pointer; font-size: 0.95rem; font-weight: 600; transition: all 0.2s; font-family: inherit; margin-top: 0.75rem; }
+        .btn-demo:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,155,58,0.4); }
+        .aviso-config { margin-top: 1rem; padding: 0.7rem; background: #fff8e1; border-radius: 10px; font-size: 0.76rem; color: #7a5c00; border-left: 3px solid var(--amarillo-brasil); text-align: left; line-height: 1.5; }
+
+        /* ====== MAIN ====== */
+        main { max-width: 1100px; margin: 2rem auto; padding: 0 1rem; }
+
+        .acciones { background: white; border-radius: 16px; padding: 1.4rem 1.5rem; box-shadow: 0 6px 24px var(--sombra); margin-bottom: 2rem; border-top: 5px solid var(--amarillo-brasil); }
+        .acciones h2 { color: var(--azul-cielo); font-size: 1.2rem; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.6rem; }
+        .icono-titulo { width: 22px; height: 22px; flex-shrink: 0; }
+
+        .btn-crear {
+            background: linear-gradient(135deg, var(--verde-bosque), var(--verde-claro));
+            color: white; border: none; padding: 0.8rem 1.7rem; font-size: 0.98rem; font-weight: 600;
+            border-radius: 50px; cursor: pointer; transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0, 155, 58, 0.3);
+            display: inline-flex; align-items: center; gap: 0.5rem; font-family: inherit;
+        }
+        .btn-crear:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0, 155, 58, 0.45); }
+        .btn-crear svg { width: 18px; height: 18px; }
+
+        /* Indicador de conexión */
+        .estado-sync { font-size: 0.78rem; color: var(--gris-texto); display: inline-flex; align-items: center; gap: 0.4rem; margin-left: 1rem; }
+        .punto-sync { width: 9px; height: 9px; border-radius: 50%; background: #bbb; }
+        .punto-sync.online { background: var(--verde-bosque); }
+        .punto-sync.offline { background: var(--naranja-energia); }
+
+        /* ====== TESTS ====== */
+        .seccion-tests h2 { color: var(--azul-cielo); font-size: 1.2rem; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.6rem; }
+        #contenedor-tests { display: grid; gap: 1.5rem; }
+
+        .tarjeta-test { background: white; border-radius: 16px; overflow: hidden; box-shadow: 0 6px 24px var(--sombra); border-left: 6px solid var(--verde-bosque); transition: transform 0.2s ease; }
+        .tarjeta-test:hover { transform: translateY(-3px); }
+        .tarjeta-test.tipo-segundos { border-left-color: var(--naranja-energia); }
+        .tarjeta-test.tipo-otro { border-left-color: var(--azul-cielo); }
+
+        .encabezado-test { padding: 1.1rem 1.4rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; background: linear-gradient(to right, rgba(254,209,0,0.07), transparent); }
+        .info-test h3 { color: var(--gris-oscuro); font-size: 1.2rem; margin-bottom: 0.2rem; }
+        .meta-test { font-size: 0.83rem; color: var(--gris-texto); }
+        .meta-test .badge { display: inline-block; background: var(--azul-cielo); color: white; padding: 2px 10px; border-radius: 12px; font-size: 0.73rem; margin-right: 0.5rem; font-weight: 500; }
+
+        .botones-test { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+        .btn-accion { background: white; border: 2px solid var(--gris-borde); color: #555; padding: 0.5rem 0.85rem; border-radius: 10px; cursor: pointer; font-size: 0.83rem; font-weight: 500; transition: all 0.2s ease; display: inline-flex; align-items: center; gap: 0.35rem; font-family: inherit; }
+        .btn-accion svg { width: 15px; height: 15px; }
+        .btn-accion:hover { border-color: var(--azul-cielo); color: var(--azul-cielo); }
+        .btn-accion.danger:hover { border-color: #d32f2f; color: #d32f2f; background: #ffebee; }
+        .btn-guardar { background: var(--amarillo-brasil); color: var(--gris-oscuro); border: none; padding: 0.5rem 1rem; border-radius: 10px; cursor: pointer; font-weight: 600; font-size: 0.83rem; transition: all 0.2s ease; font-family: inherit; }
+        .btn-guardar:hover { background: #fbc02d; }
+
+        .cuerpo-test { padding: 1.4rem; display: grid; grid-template-columns: 1fr; gap: 1.5rem; }
+        @media (min-width: 900px) { .cuerpo-test { grid-template-columns: 1.3fr 1fr; } }
+
+        .grafica-contenedor { position: relative; min-height: 320px; background: #fafafa; border-radius: 12px; padding: 1rem; border: 1px solid #eee; }
+
+        /* ====== PANEL DESTACADO ====== */
+        .panel-destacado { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.3rem; }
+        .tarjeta-destacada { border-radius: 14px; padding: 1.1rem; text-align: center; color: white; position: relative; overflow: hidden; }
+        .tarjeta-destacada.mejor { background: linear-gradient(135deg, var(--verde-bosque), var(--verde-claro)); }
+        .tarjeta-destacada.promedio { background: linear-gradient(135deg, var(--azul-cielo), #1a4cc4); }
+        .tarjeta-destacada::before { content: ""; position: absolute; top: -20px; right: -20px; width: 70px; height: 70px; background: rgba(255,255,255,0.12); border-radius: 50%; }
+        .tarjeta-destacada .icono-svg { width: 26px; height: 26px; margin-bottom: 0.3rem; opacity: 0.95; }
+        .tarjeta-destacada .etiqueta { font-size: 0.74rem; text-transform: uppercase; letter-spacing: 0.8px; opacity: 0.92; font-weight: 600; }
+        .tarjeta-destacada .valor { font-size: 1.7rem; font-weight: 800; line-height: 1.2; }
+        .tarjeta-destacada .sub-valor { font-size: 0.8rem; opacity: 0.92; margin-top: 0.2rem; }
+
+        .panel-marcas h4 { color: var(--azul-cielo); margin-bottom: 0.7rem; font-size: 1rem; }
+
+        .lista-marcas { display: grid; gap: 0.5rem; max-height: 260px; overflow-y: auto; padding-right: 0.3rem; }
+        .lista-marcas::-webkit-scrollbar { width: 6px; }
+        .lista-marcas::-webkit-scrollbar-thumb { background: var(--verde-bosque); border-radius: 3px; }
+
+        .fila-marca { display: grid; grid-template-columns: auto 1fr; gap: 0.5rem; align-items: center; }
+        .etiqueta-dia { background: var(--azul-cielo); color: white; padding: 0.4rem 0.6rem; border-radius: 8px; font-size: 0.78rem; font-weight: 600; text-align: center; min-width: 55px; }
+        .input-marca { padding: 0.4rem 0.6rem; border: 2px solid var(--gris-borde); border-radius: 8px; font-size: 0.9rem; width: 100%; transition: border-color 0.2s ease; font-family: inherit; }
+        .input-marca:focus { outline: none; border-color: var(--verde-bosque); }
+
+        .resumen-test { margin-top: 1rem; padding: 0.85rem; background: linear-gradient(135deg, rgba(0,155,58,0.08), rgba(254,209,0,0.08)); border-radius: 10px; font-size: 0.83rem; display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; }
+        .resumen-test .stat { display: flex; flex-direction: column; }
+        .resumen-test .stat-label { color: #777; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.5px; }
+        .resumen-test .stat-value { font-weight: 700; color: var(--azul-cielo); font-size: 1.02rem; }
+
+        /* ====== MODAL ====== */
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 39, 118, 0.6); backdrop-filter: blur(4px); z-index: 1000; justify-content: center; align-items: center; padding: 1rem; }
+        .modal-overlay.activo { display: flex; animation: fadeIn 0.25s ease; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+        .modal { background: white; border-radius: 20px; padding: 2rem; max-width: 500px; width: 100%; max-height: 90vh; overflow-y: auto; box-shadow: 0 20px 60px rgba(0,0,0,0.4); border-top: 6px solid var(--amarillo-brasil); animation: slideUp 0.3s ease; }
+        @keyframes slideUp { from { transform: translateY(30px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+
+        .modal h2 { color: var(--azul-cielo); margin-bottom: 1.4rem; font-size: 1.4rem; display: flex; align-items: center; gap: 0.6rem; }
+        .campo { margin-bottom: 1.1rem; }
+        .campo label { display: block; font-weight: 600; margin-bottom: 0.4rem; color: var(--gris-oscuro); font-size: 0.88rem; }
+        .campo label .ayuda { font-weight: 400; color: var(--gris-texto); font-size: 0.78rem; display: block; margin-top: 0.15rem; }
+        .campo input, .campo select { width: 100%; padding: 0.65rem 0.85rem; border: 2px solid var(--gris-borde); border-radius: 10px; font-size: 0.98rem; transition: border-color 0.2s ease; font-family: inherit; background: white; }
+        .campo input:focus, .campo select:focus { outline: none; border-color: var(--verde-bosque); }
+        .campo input:disabled { background: #f5f5f5; color: #aaa; }
+        .fila-campos { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+
+        .acciones-modal { display: flex; gap: 0.75rem; justify-content: flex-end; margin-top: 1.4rem; }
+        .btn { padding: 0.65rem 1.4rem; border-radius: 50px; border: none; font-size: 0.92rem; font-weight: 600; cursor: pointer; transition: all 0.2s ease; font-family: inherit; }
+        .btn-primario { background: linear-gradient(135deg, var(--verde-bosque), var(--verde-claro)); color: white; }
+        .btn-primario:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,155,58,0.4); }
+        .btn-secundario { background: #f0f0f0; color: #555; }
+        .btn-secundario:hover { background: #e0e0e0; }
+
+        /* ====== ESTADO VACÍO ====== */
+        .estado-vacio { text-align: center; padding: 3rem 1rem; color: var(--gris-texto); }
+        .estado-vacio .icono-grande { width: 70px; height: 70px; margin: 0 auto 1rem; color: #c4c4c4; }
+        .estado-vacio h3 { color: var(--gris-oscuro); margin-bottom: 0.3rem; }
+
+        /* ====== TOAST ====== */
+        .toast { position: fixed; bottom: 2rem; left: 50%; transform: translateX(-50%) translateY(100px); background: var(--gris-oscuro); color: white; padding: 0.85rem 1.7rem; border-radius: 50px; box-shadow: 0 6px 20px rgba(0,0,0,0.3); z-index: 2000; opacity: 0; transition: all 0.3s ease; font-weight: 500; font-size: 0.9rem; }
+        .toast.mostrar { opacity: 1; transform: translateX(-50%) translateY(0); }
+        .toast.exito { background: var(--verde-bosque); }
+        .toast.error { background: #d32f2f; }
+
+        footer { text-align: center; padding: 2rem 1rem; color: var(--gris-texto); font-size: 0.82rem; margin-top: 2rem; }
+        footer .linea-color { width: 80px; height: 4px; margin: 0.6rem auto 0; border-radius: 2px; background: linear-gradient(to right, var(--verde-bosque) 0 33%, var(--amarillo-brasil) 33% 66%, var(--azul-cielo) 66%); }
+
+        .selector-tipo { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.5rem; }
+        .opcion-tipo { border: 2px solid var(--gris-borde); border-radius: 10px; padding: 0.7rem 0.5rem; text-align: center; cursor: pointer; transition: all 0.2s ease; font-size: 0.83rem; display: flex; flex-direction: column; align-items: center; gap: 0.3rem; }
+        .opcion-tipo:hover { border-color: var(--verde-bosque); }
+        .opcion-tipo.seleccionado { border-color: var(--verde-bosque); background: rgba(0,155,58,0.08); color: var(--verde-bosque); font-weight: 600; }
+        .opcion-tipo .icono-svg { width: 22px; height: 22px; }
+
+        /* Pantalla de carga */
+        .cargando { display: flex; align-items: center; justify-content: center; min-height: 100vh; }
+        .spinner { width: 48px; height: 48px; border: 5px solid var(--gris-borde); border-top-color: var(--verde-bosque); border-radius: 50%; animation: girar 0.8s linear infinite; }
+        @keyframes girar { to { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+
+    <!-- Pantalla de carga inicial -->
+    <div class="cargando" id="pantalla-carga">
+        <div class="spinner"></div>
+    </div>
+
+    <!-- ====================================================== -->
+    <!--  PANTALLA DE LOGIN                                      -->
+    <!-- ====================================================== -->
+    <div id="pantalla-login" class="pantalla-login" style="display:none;">
+        <div class="login-card">
+            <div class="logo-marca">
+                <!-- Atleta en salida de tacos -->
+                <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <rect x="2" y="54" width="60" height="6" rx="2" fill="#009b3a"/>
+                    <line x1="2" y1="58" x2="62" y2="58" stroke="#fffdf5" stroke-width="0.6" stroke-dasharray="2 2"/>
+                    <path d="M8 50 L20 50 L18 44 L10 44 Z" fill="#002776"/>
+                    <path d="M24 50 L34 50 L32 45 L26 45 Z" fill="#002776"/>
+                    <path d="M22 44 L40 50 L42 48 L24 42 Z" fill="#ff6b35"/>
+                    <path d="M30 44 L36 46 L38 44 L34 42 Z" fill="#ff6b35"/>
+                    <path d="M36 38 L48 30 L50 33 L38 42 Z" fill="#fed100"/>
+                    <path d="M48 30 L54 38 L52 39 L46 32 Z" fill="#ff6b35"/>
+                    <circle cx="55" cy="40" r="3" fill="#1a1a1a"/>
+                    <circle cx="49" cy="27" r="5" fill="#ff6b35"/>
+                    <path d="M45 25 Q49 22 53 25" stroke="#1a1a1a" stroke-width="1.2" fill="none"/>
+                </svg>
+            </div>
+            <h2>Tester_<span style="color:var(--verde-bosque)">Vesubio</span></h2>
+            <p>Plataforma de seguimiento de marcas de atletismo.<br>Inicia sesión para registrar tu progreso.</p>
+
+            <button class="btn-google" onclick="loginGoogle()">
+                <svg viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+                Continuar con Google
+            </button>
+
+            <button class="btn-demo" onclick="loginDemo()">Entrar en modo demostración</button>
+
+            <div class="aviso-config" id="aviso-config">
+                <strong>Para activar la sincronización en la nube:</strong> configura Firebase pegando tu
+                <code>FIREBASE_CONFIG</code> en el archivo (instrucciones en el código). Sin Firebase,
+                los datos se guardan solo en este navegador.
+            </div>
+        </div>
+    </div>
+
+    <!-- ====================================================== -->
+    <!--  APLICACIÓN PRINCIPAL                                   -->
+    <!-- ====================================================== -->
+    <div id="app" style="display:none;">
+        <header>
+            <div class="header-contenido">
+                <div class="logo-titulo">
+                    <div class="logo-marca">
+                        <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <rect x="2" y="54" width="60" height="6" rx="2" fill="#009b3a"/>
+                            <line x1="2" y1="58" x2="62" y2="58" stroke="#fffdf5" stroke-width="0.6" stroke-dasharray="2 2"/>
+                            <path d="M8 50 L20 50 L18 44 L10 44 Z" fill="#002776"/>
+                            <path d="M24 50 L34 50 L32 45 L26 45 Z" fill="#002776"/>
+                            <path d="M22 44 L40 50 L42 48 L24 42 Z" fill="#ff6b35"/>
+                            <path d="M30 44 L36 46 L38 44 L34 42 Z" fill="#ff6b35"/>
+                            <path d="M36 38 L48 30 L50 33 L38 42 Z" fill="#fed100"/>
+                            <path d="M48 30 L54 38 L52 39 L46 32 Z" fill="#ff6b35"/>
+                            <circle cx="55" cy="40" r="3" fill="#1a1a1a"/>
+                            <circle cx="49" cy="27" r="5" fill="#ff6b35"/>
+                            <path d="M45 25 Q49 22 53 25" stroke="#1a1a1a" stroke-width="1.2" fill="none"/>
+                        </svg>
+                    </div>
+                    <div>
+                        <h1>Tester_<span class="accent">Vesubio</span></h1>
+                        <p class="subtitulo">Seguimiento de marcas de atletismo</p>
+                    </div>
+                </div>
+                <div class="info-usuario" id="info-usuario"></div>
+            </div>
+        </header>
+
+        <main>
+            <section class="acciones">
+                <h2>
+                    <svg class="icono-titulo" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+                    </svg>
+                    Panel de control
+                    <span class="estado-sync" id="estado-sync">
+                        <span class="punto-sync" id="punto-sync"></span>
+                        <span id="texto-sync">Conectando...</span>
+                    </span>
+                </h2>
+                <button class="btn-crear" onclick="abrirModalCrear()">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+                    </svg>
+                    Crear nuevo test
+                </button>
+            </section>
+
+            <section class="seccion-tests">
+                <h2>
+                    <svg class="icono-titulo" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/>
+                    </svg>
+                    Tests de entrenamiento
+                </h2>
+                <div id="contenedor-tests"></div>
+            </section>
+        </main>
+
+        <footer>
+            <p>Tester_Vesubio · Plataforma de seguimiento deportivo</p>
+            <div class="linea-color"></div>
+        </footer>
+    </div>
+
+    <!-- ====== MODAL CREAR TEST ====== -->
+    <div class="modal-overlay" id="modal-crear">
+        <div class="modal">
+            <h2>
+                <svg class="icono-titulo" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+                </svg>
+                Crear nuevo test
+            </h2>
+
+            <div class="campo">
+                <label for="input-nombre">Nombre del test</label>
+                <input type="text" id="input-nombre" placeholder="Ej: Velocidad 100m, Salto largo, Resistencia...">
+            </div>
+
+            <div class="campo">
+                <label>Tipo de marca<span class="ayuda">Define qué medirás en el eje Y</span></label>
+                <div class="selector-tipo">
+                    <div class="opcion-tipo seleccionado" data-tipo="metros" data-unidad="m" onclick="seleccionarTipo(this)">
+                        <svg class="icono-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.3 8.7L8.7 21.3a2.4 2.4 0 0 1-3.4 0L2.7 18.7a2.4 2.4 0 0 1 0-3.4L15.3 2.7a2.4 2.4 0 0 1 3.4 0l2.6 2.6a2.4 2.4 0 0 1 0 3.4Z"/><path d="m7.5 10.5 2 2M10.5 7.5l2 2M13.5 4.5l2 2M4.5 13.5l2 2"/></svg>
+                        Metros
+                    </div>
+                    <div class="opcion-tipo" data-tipo="segundos" data-unidad="s" onclick="seleccionarTipo(this)">
+                        <svg class="icono-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                        Segundos
+                    </div>
+                    <div class="opcion-tipo" data-tipo="otro" data-unidad="u" onclick="seleccionarTipo(this)">
+                        <svg class="icono-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="9" x2="20" y2="9"/><line x1="4" y1="15" x2="20" y2="15"/><line x1="10" y1="3" x2="8" y2="21"/><line x1="16" y1="3" x2="14" y2="21"/></svg>
+                        Otro
+                    </div>
+                </div>
+            </div>
+
+            <div class="campo">
+                <label for="input-unidad">Unidad personalizada<span class="ayuda">Solo si elegiste "Otro" (ej: repeticiones, kg, km/h)</span></label>
+                <input type="text" id="input-unidad" placeholder="Ej: rep, kg, km/h" disabled>
+            </div>
+
+            <div class="fila-campos">
+                <div class="campo">
+                    <label for="input-dias">Cantidad de días</label>
+                    <input type="number" id="input-dias" min="1" max="60" value="7">
+                </div>
+                <div class="campo">
+                    <label for="input-inicio">Día de inicio (referencia)</label>
+                    <input type="number" id="input-inicio" min="0" value="1">
+                </div>
+            </div>
+
+            <div class="acciones-modal">
+                <button class="btn btn-secundario" onclick="cerrarModalCrear()">Cancelar</button>
+                <button class="btn btn-primario" onclick="crearTest()">Crear test</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ====== MODAL CONFIRMACIÓN ELIMINAR ====== -->
+    <div class="modal-overlay" id="modal-eliminar">
+        <div class="modal" style="max-width: 420px;">
+            <h2>
+                <svg class="icono-titulo" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                Eliminar test
+            </h2>
+            <p style="margin-bottom: 1.5rem; color: #555;">
+                ¿Seguro que deseas eliminar el test <strong id="nombre-eliminar"></strong>?
+                Esta acción no se puede deshacer.
+            </p>
+            <div class="acciones-modal">
+                <button class="btn btn-secundario" onclick="cerrarModalEliminar()">Cancelar</button>
+                <button class="btn btn-primario" style="background: linear-gradient(135deg, #d32f2f, #f44336);" onclick="confirmarEliminar()">Sí, eliminar</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <script>
+        // ============================================================
+        //  Tester_Vesubio - Lógica de aplicación
+        // ============================================================
+
+        /* =========================================================
+           CONFIGURACIÓN DE FIREBASE
+           ---------------------------------------------------------
+           1. https://console.firebase.google.com/ → Agregar proyecto
+           2. Agrega una app web (</>) y copia el firebaseConfig
+           3. Pégalo aquí abajo reemplazando este objeto:
+        ========================================================= */
+        const FIREBASE_CONFIG = {
+            apiKey: "AIzaSyBHZRdFDPQ4JrcoNypl3GlFyQJq_euTtFU",
+            authDomain: "tester-vesubio.firebaseapp.com",
+            projectId: "tester-vesubio",
+            storageBucket: "tester-vesubio.firebasestorage.app",
+            messagingSenderId: "401669164042",
+            appId: "1:401669164042:web:85cf43aa7c98014e7a23f3",
+            measurementId: "G-BJENRMK266"
+        };
+
+        // Login con Google por OAuth separado (mantenemos tu Client ID)
+        const GOOGLE_CLIENT_ID = '667932580210-kmq5osge4kipm3qv3u1lvt0k3eelgps8.apps.googleusercontent.com';
+
+        // --- Estado global ---
+        let tests = [];
+        let charts = {};
+        let tipoSeleccionado = { tipo: 'metros', unidad: 'm' };
+        let testAEliminar = null;
+        let usuarioActual = null;
+        let db = null;          // instancia Firestore
+        let unsubscribe = null; // para dejar de escuchar cambios en tiempo real
+        let firebaseOK = false; // ¿Firebase está configurado?
+
+        // --- Inicializar Firebase ---
+        function inicializarFirebase() {
+            const estaConfigurado = FIREBASE_CONFIG.apiKey &&
+                FIREBASE_CONFIG.apiKey !== 'TU_API_KEY';
+            if (!estaConfigurado) {
+                firebaseOK = false;
+                return false;
+            }
+            try {
+                firebase.initializeApp(FIREBASE_CONFIG);
+                db = firebase.firestore();
+                firebaseOK = true;
+                return true;
+            } catch (e) {
+                console.warn('Error al iniciar Firebase:', e);
+                firebaseOK = false;
+                return false;
+            }
+        }
+
+        // --- Persistencia ---
+        function claveLocal() {
+            return usuarioActual && usuarioActual.email
+                ? 'tester_vesubio_tests_' + btoa(unescape(encodeURIComponent(usuarioActual.email)))
+                : 'tester_vesubio_tests_demo';
+        }
+
+        function cargarTestsLocal() {
+            try { tests = JSON.parse(localStorage.getItem(claveLocal()) || '[]'); }
+            catch (e) { tests = []; }
+        }
+        function guardarLocal() {
+            localStorage.setItem(claveLocal(), JSON.stringify(tests));
+        }
+
+        // Guardado principal (decide nube o local)
+        async function guardarDatos() {
+            if (!usuarioActual) return;
+            if (firebaseOK && db && usuarioActual.uid) {
+                // NUBE: guarda el documento completo del usuario
+                try {
+                    await db.collection('usuarios').doc(usuarioActual.uid).set({
+                        nombre: usuarioActual.nombre,
+                        email: usuarioActual.email,
+                        foto: usuarioActual.foto || '',
+                        ultimaActividad: firebase.firestore.FieldValue.serverTimestamp(),
+                        tests: tests
+                    }, { merge: true });
+                    actualizarEstadoSync(true);
+                } catch (e) {
+                    console.warn('Error guardando en nube, usando local:', e);
+                    guardarLocal();
+                    actualizarEstadoSync(false);
+                }
+            } else {
+                guardarLocal();
+                actualizarEstadoSync(false);
+            }
+        }
+
+        // Cargar datos (nube o local)
+        async function cargarDatos() {
+            if (firebaseOK && db && usuarioActual && usuarioActual.uid) {
+                try {
+                    const doc = await db.collection('usuarios').doc(usuarioActual.uid).get();
+                    if (doc.exists && doc.data().tests) {
+                        tests = doc.data().tests;
+                    } else {
+                        // Migrar datos locales existentes a la nube
+                        cargarTestsLocal();
+                        if (tests.length > 0) await guardarDatos();
+                    }
+                    // Escuchar cambios en tiempo real
+                    suscribirCambios();
+                } catch (e) {
+                    console.warn('Error leyendo nube:', e);
+                    cargarTestsLocal();
+                }
+            } else {
+                cargarTestsLocal();
+            }
+            renderizarTests();
+        }
+
+        // Listener en tiempo real (sincroniza entre dispositivos)
+        function suscribirCambios() {
+            if (!firebaseOK || !db || !usuarioActual || !usuarioActual.uid) return;
+            if (unsubscribe) unsubscribe();
+            unsubscribe = db.collection('usuarios').doc(usuarioActual.uid)
+                .onSnapshot((doc) => {
+                    if (doc.exists && doc.data().tests) {
+                        const nuevos = doc.data().tests;
+                        // Solo actualizar si realmente cambiaron (evita loops)
+                        if (JSON.stringify(nuevos) !== JSON.stringify(tests)) {
+                            tests = nuevos;
+                            renderizarTests();
+                        }
+                    }
+                    actualizarEstadoSync(true);
+                }, (err) => {
+                    console.warn('Error en listener:', err);
+                    actualizarEstadoSync(false);
+                });
+        }
+
+        // Indicador de conexión
+        function actualizarEstadoSync(online) {
+            const punto = document.getElementById('punto-sync');
+            const texto = document.getElementById('texto-sync');
+            if (!punto) return;
+            if (online) {
+                punto.className = 'punto-sync online';
+                texto.textContent = firebaseOK ? 'Sincronizado en la nube' : 'Guardado local';
+            } else {
+                punto.className = 'punto-sync offline';
+                texto.textContent = 'Sin conexión (modo local)';
+            }
+        }
+
+        // --- Notificaciones ---
+        function mostrarToast(mensaje, tipo = '') {
+            const toast = document.getElementById('toast');
+            toast.textContent = mensaje;
+            toast.className = 'toast mostrar ' + tipo;
+            clearTimeout(toast._t);
+            toast._t = setTimeout(() => toast.classList.remove('mostrar'), 2500);
+        }
+
+        // ============================================================
+        //  AUTENTICACIÓN
+        // ============================================================
+        function loginGoogle() {
+            if (firebaseOK) {
+                // Login con Firebase (maneja todo: token, sesión, sync)
+                const provider = new firebase.auth.GoogleAuthProvider();
+                firebase.auth().signInWithPopup(provider).catch(err => {
+                    mostrarToast('Error al iniciar sesión: ' + err.message, 'error');
+                });
+            } else {
+                // Fallback: Google Identity Services directo
+                if (window.google && google.accounts && google.accounts.id) {
+                    google.accounts.id.initialize({
+                        client_id: GOOGLE_CLIENT_ID,
+                        callback: handleCredentialGIS
+                    });
+                    google.accounts.id.prompt();
+                } else {
+                    mostrarToast('Configura Firebase para el login', 'error');
+                }
+            }
+        }
+
+        // Callback de GIS (modo sin Firebase)
+        function handleCredentialGIS(response) {
+            const datos = decodificarJWT(response.credential);
+            usuarioActual = {
+                uid: 'gis_' + datos.sub,
+                nombre: datos.name, email: datos.email,
+                foto: datos.picture, proveedor: 'google'
+            };
+            localStorage.setItem('tester_vesubio_user', JSON.stringify(usuarioActual));
+            mostrarApp();
+        }
+
+        function decodificarJWT(token) {
+            const base64Url = token.split('.')[1];
+            const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+            const jsonPayload = decodeURIComponent(
+                atob(base64).split('').map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)).join('')
+            );
+            return JSON.parse(jsonPayload);
+        }
+
+        function loginDemo() {
+            usuarioActual = {
+                uid: 'demo_local', nombre: 'Atleta Demo',
+                email: 'demo@vesubio.local', foto: '', proveedor: 'demo'
+            };
+            localStorage.setItem('tester_vesubio_user', JSON.stringify(usuarioActual));
+            mostrarApp();
+        }
+
+        function logout() {
+            if (firebaseOK && firebase.auth().currentUser) {
+                firebase.auth().signOut();
+            }
+            if (unsubscribe) { unsubscribe(); unsubscribe = null; }
+            usuarioActual = null;
+            localStorage.removeItem('tester_vesubio_user');
+            Object.keys(charts).forEach(id => { if (charts[id]) charts[id].destroy(); });
+            charts = {};
+            tests = [];
+            document.getElementById('app').style.display = 'none';
+            document.getElementById('pantalla-login').style.display = 'flex';
+            document.getElementById('aviso-config').style.display = firebaseOK ? 'none' : 'block';
+        }
+
+        // Listener de estado de autenticación de Firebase
+        function escucharAuthFirebase() {
+            if (!firebaseOK) return;
+            firebase.auth().onAuthStateChanged((user) => {
+                if (user) {
+                    usuarioActual = {
+                        uid: user.uid,
+                        nombre: user.displayName || 'Atleta',
+                        email: user.email || '',
+                        foto: user.photoURL || '',
+                        proveedor: 'firebase'
+                    };
+                    localStorage.setItem('tester_vesubio_user', JSON.stringify(usuarioActual));
+                    mostrarApp();
+                }
+            });
+        }
+
+        function mostrarApp() {
+            document.getElementById('pantalla-carga').style.display = 'none';
+            document.getElementById('pantalla-login').style.display = 'none';
+            document.getElementById('app').style.display = 'block';
+            document.getElementById('aviso-config').style.display = firebaseOK ? 'none' : 'block';
+            renderizarInfoUsuario();
+            cargarDatos();
+        }
+
+        function mostrarLogin() {
+            document.getElementById('pantalla-carga').style.display = 'none';
+            document.getElementById('app').style.display = 'none';
+            document.getElementById('pantalla-login').style.display = 'flex';
+            document.getElementById('aviso-config').style.display = firebaseOK ? 'none' : 'block';
+        }
+
+        function renderizarInfoUsuario() {
+            const cont = document.getElementById('info-usuario');
+            const nombre = usuarioActual.nombre || '';
+            const inicial = nombre ? nombre.charAt(0).toUpperCase() : '?';
+            let avatar;
+            if (usuarioActual.foto) {
+                avatar = `<img class="avatar" src="${usuarioActual.foto}" alt="avatar"
+                            onerror="this.outerHTML='<div class=&quot;avatar-iniciales&quot;>${inicial}</div>'">`;
+            } else {
+                avatar = `<div class="avatar-iniciales">${inicial}</div>`;
+            }
+            const badge = usuarioActual.proveedor === 'demo'
+                ? '<span style="font-size:0.62rem;background:var(--naranja-energia);color:white;padding:1px 6px;border-radius:8px;margin-left:4px;font-weight:600;">DEMO</span>'
+                : '';
+            cont.innerHTML = `
+                ${avatar}
+                <div style="text-align:left;">
+                    <div class="nombre">${escapeHtml(nombre)} ${badge}</div>
+                    <div class="email">${escapeHtml(usuarioActual.email || '')}</div>
+                </div>
+                <button class="btn-logout" onclick="logout()">Salir</button>
+            `;
+        }
+
+        // ============================================================
+        //  MODAL CREAR
+        // ============================================================
+        function abrirModalCrear() {
+            document.getElementById('modal-crear').classList.add('activo');
+            document.getElementById('input-nombre').focus();
+            document.getElementById('input-nombre').value = '';
+            document.getElementById('input-dias').value = 7;
+            document.getElementById('input-inicio').value = 1;
+            document.getElementById('input-unidad').value = '';
+            document.getElementById('input-unidad').disabled = true;
+            document.querySelectorAll('.opcion-tipo').forEach(el => el.classList.remove('seleccionado'));
+            document.querySelector('.opcion-tipo[data-tipo="metros"]').classList.add('seleccionado');
+            tipoSeleccionado = { tipo: 'metros', unidad: 'm' };
+        }
+        function cerrarModalCrear() { document.getElementById('modal-crear').classList.remove('activo'); }
+
+        function seleccionarTipo(elemento) {
+            document.querySelectorAll('.opcion-tipo').forEach(el => el.classList.remove('seleccionado'));
+            elemento.classList.add('seleccionado');
+            tipoSeleccionado = { tipo: elemento.dataset.tipo, unidad: elemento.dataset.unidad };
+            const inputUnidad = document.getElementById('input-unidad');
+            inputUnidad.disabled = tipoSeleccionado.tipo !== 'otro';
+            if (tipoSeleccionado.tipo !== 'otro') inputUnidad.value = '';
+        }
+
+        function crearTest() {
+            const nombre = document.getElementById('input-nombre').value.trim();
+            const dias = parseInt(document.getElementById('input-dias').value);
+            const inicio = parseInt(document.getElementById('input-inicio').value);
+            let unidad = tipoSeleccionado.unidad;
+            if (tipoSeleccionado.tipo === 'otro') {
+                unidad = document.getElementById('input-unidad').value.trim() || 'u';
+            }
+            if (!nombre) { mostrarToast('Ingresa un nombre para el test', 'error'); return; }
+            if (!dias || dias < 1 || dias > 60) { mostrarToast('La cantidad de días debe estar entre 1 y 60', 'error'); return; }
+            if (isNaN(inicio) || inicio < 0) { mostrarToast('El día de inicio debe ser válido', 'error'); return; }
+
+            const etiquetas = [];
+            for (let i = 0; i < dias; i++) etiquetas.push('Día ' + (inicio + i));
+
+            tests.push({
+                id: 'test_' + Date.now(),
+                nombre, tipo: tipoSeleccionado.tipo, unidad, dias, inicio,
+                etiquetas, marcas: new Array(dias).fill(null)
+            });
+            guardarDatos();
+            cerrarModalCrear();
+            renderizarTests();
+            mostrarToast('Test "' + nombre + '" creado', 'exito');
+        }
+
+        // ============================================================
+        //  RENDERIZADO
+        // ============================================================
+        function renderizarTests() {
+            const contenedor = document.getElementById('contenedor-tests');
+            contenedor.innerHTML = '';
+            Object.keys(charts).forEach(id => { if (charts[id]) { charts[id].destroy(); delete charts[id]; } });
+
+            if (tests.length === 0) {
+                contenedor.innerHTML = `
+                    <div class="estado-vacio">
+                        <svg class="icono-grande" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>
+                        </svg>
+                        <h3>No hay tests todavía</h3>
+                        <p>Crea tu primer test de entrenamiento para comenzar a registrar tus marcas.</p>
+                    </div>`;
+                return;
+            }
+            tests.forEach(test => contenedor.appendChild(crearTarjetaTest(test)));
+            tests.forEach(test => crearGrafica(test));
+        }
+
+        function crearTarjetaTest(test) {
+            const tarjeta = document.createElement('div');
+            tarjeta.className = 'tarjeta-test tipo-' + test.tipo;
+            const tipoTexto = { 'metros': 'Distancia (m)', 'segundos': 'Tiempo (s)', 'otro': test.unidad };
+            tarjeta.innerHTML = `
+                <div class="encabezado-test">
+                    <div class="info-test">
+                        <h3>${escapeHtml(test.nombre)}</h3>
+                        <div class="meta-test">
+                            <span class="badge">${tipoTexto[test.tipo]}</span>
+                            ${test.dias} días · Inicio: Día ${test.inicio}
+                        </div>
+                    </div>
+                    <div class="botones-test">
+                        <button class="btn-guardar" onclick="guardarMarcas('${test.id}')">Guardar</button>
+                        <button class="btn-accion" onclick="exportarCSV('${test.id}')">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="16" y2="17"/></svg>
+                            CSV
+                        </button>
+                        <button class="btn-accion" onclick="exportarPDF('${test.id}')">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                            PDF
+                        </button>
+                        <button class="btn-accion danger" onclick="solicitarEliminar('${test.id}')" title="Eliminar">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                        </button>
+                    </div>
+                </div>
+                <div class="cuerpo-test">
+                    <div>
+                        <div class="panel-destacado" id="destacado-${test.id}">${calcularPanelDestacado(test)}</div>
+                        <div class="grafica-contenedor"><canvas id="grafica-${test.id}"></canvas></div>
+                    </div>
+                    <div class="panel-marcas">
+                        <h4>Editar marcas (${escapeHtml(test.unidad)})</h4>
+                        <div class="lista-marcas" id="marcas-${test.id}">
+                            ${test.marcas.map((m, i) => `
+                                <div class="fila-marca">
+                                    <span class="etiqueta-dia">${test.etiquetas[i]}</span>
+                                    <input type="number" step="any" class="input-marca"
+                                        value="${m !== null ? m : ''}" placeholder="Sin registro"
+                                        oninput="actualizarMarca('${test.id}', ${i}, this.value)">
+                                </div>`).join('')}
+                        </div>
+                        <div class="resumen-test" id="resumen-${test.id}">${calcularResumen(test)}</div>
+                    </div>
+                </div>`;
+            return tarjeta;
+        }
+
+        // ====== PANEL DESTACADO ======
+        function calcularMejorDia(test) {
+            const validas = [];
+            test.marcas.forEach((m, i) => {
+                if (m !== null && m !== '' && !isNaN(m)) validas.push({ dia: test.etiquetas[i], indice: i, valor: m });
+            });
+            if (validas.length === 0) return null;
+            return test.tipo === 'segundos'
+                ? validas.reduce((a, b) => a.valor < b.valor ? a : b)
+                : validas.reduce((a, b) => a.valor > b.valor ? a : b);
+        }
+        function calcularPromedio(test) {
+            const validas = test.marcas.filter(m => m !== null && m !== '' && !isNaN(m));
+            if (validas.length === 0) return null;
+            return validas.reduce((a, b) => a + b, 0) / validas.length;
+        }
+        function calcularPanelDestacado(test) {
+            const mejor = calcularMejorDia(test);
+            const promedio = calcularPromedio(test);
+            const criterio = test.tipo === 'segundos' ? 'Menor tiempo' : 'Mayor marca';
+            const mejorHtml = mejor
+                ? `<div class="valor">${mejor.valor} <span style="font-size:0.95rem;">${escapeHtml(test.unidad)}</span></div><div class="sub-valor">${escapeHtml(mejor.dia)} · ${criterio}</div>`
+                : `<div class="valor">—</div><div class="sub-valor">Sin registros</div>`;
+            const promHtml = promedio !== null
+                ? `<div class="valor">${promedio.toFixed(2)} <span style="font-size:0.95rem;">${escapeHtml(test.unidad)}</span></div><div class="sub-valor">Promedio del test</div>`
+                : `<div class="valor">—</div><div class="sub-valor">Sin registros</div>`;
+            return `
+                <div class="tarjeta-destacada mejor">
+                    <svg class="icono-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg>
+                    <div class="etiqueta">Mejor día</div>${mejorHtml}
+                </div>
+                <div class="tarjeta-destacada promedio">
+                    <svg class="icono-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+                    <div class="etiqueta">Marca promedio</div>${promHtml}
+                </div>`;
+        }
+        function calcularResumen(test) {
+            const validas = test.marcas.filter(m => m !== null && m !== '' && !isNaN(m));
+            if (validas.length === 0) {
+                return `<div class="stat"><span class="stat-label">Registros</span><span class="stat-value">0</span></div>
+                        <div class="stat"><span class="stat-label">Estado</span><span class="stat-value" style="font-size:0.9rem;">Sin datos</span></div>`;
+            }
+            const min = Math.min(...validas);
+            const max = Math.max(...validas);
+            const prom = (validas.reduce((a, b) => a + b, 0) / validas.length).toFixed(2);
+            const progreso = (validas[validas.length - 1] - validas[0]).toFixed(2);
+            const signo = progreso > 0 ? '+' : '';
+            const colorProgreso = progreso > 0 ? 'var(--verde-bosque)' : (progreso < 0 ? '#d32f2f' : 'var(--azul-cielo)');
+            return `
+                <div class="stat"><span class="stat-label">Mínimo</span><span class="stat-value">${min} ${escapeHtml(test.unidad)}</span></div>
+                <div class="stat"><span class="stat-label">Máximo</span><span class="stat-value">${max} ${escapeHtml(test.unidad)}</span></div>
+                <div class="stat"><span class="stat-label">Promedio</span><span class="stat-value">${prom} ${escapeHtml(test.unidad)}</span></div>
+                <div class="stat"><span class="stat-label">Progreso</span><span class="stat-value" style="color:${colorProgreso}">${signo}${progreso} ${escapeHtml(test.unidad)}</span></div>`;
+        }
+
+        // ============================================================
+        //  GRÁFICA
+        // ============================================================
+        function crearGrafica(test) {
+            const canvas = document.getElementById('grafica-' + test.id);
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+            const colores = {
+                'metros':   { borde: '#009b3a', fondo: 'rgba(0, 155, 58, 0.15)' },
+                'segundos': { borde: '#ff6b35', fondo: 'rgba(255, 107, 53, 0.15)' },
+                'otro':     { borde: '#002776', fondo: 'rgba(0, 39, 118, 0.15)' }
+            };
+            const color = colores[test.tipo] || colores['otro'];
+            charts[test.id] = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: test.etiquetas,
+                    datasets: [{
+                        label: test.nombre + ' (' + test.unidad + ')',
+                        data: test.marcas, borderColor: color.borde, backgroundColor: color.fondo,
+                        borderWidth: 3, fill: true, tension: 0.35,
+                        pointBackgroundColor: color.borde, pointBorderColor: '#fff',
+                        pointBorderWidth: 2, pointRadius: 6, pointHoverRadius: 9, spanGaps: true
+                    }]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    animation: { duration: 600, easing: 'easeOutQuart' },
+                    plugins: {
+                        legend: { display: true, position: 'top', labels: { font: { size: 13, weight: '600' }, color: '#1a1a1a' } },
+                        tooltip: { backgroundColor: 'rgba(0, 39, 118, 0.95)', titleFont: { size: 14, weight: 'bold' }, bodyFont: { size: 13 }, padding: 12, cornerRadius: 8,
+                            callbacks: { label: ctx => ctx.parsed.y === null ? 'Sin registro' : ctx.parsed.y + ' ' + test.unidad } }
+                    },
+                    scales: {
+                        y: { beginAtZero: false, title: { display: true, text: test.unidad, font: { size: 12, weight: '600' }, color: '#555' }, grid: { color: 'rgba(0,0,0,0.06)' }, ticks: { color: '#666' } },
+                        x: { title: { display: true, text: 'Días de entrenamiento', font: { size: 12, weight: '600' }, color: '#555' }, grid: { color: 'rgba(0,0,0,0.06)' }, ticks: { color: '#666' } }
+                    }
+                }
+            });
+        }
+
+        function actualizarMarca(testId, indice, valor) {
+            const test = tests.find(t => t.id === testId);
+            if (!test) return;
+            if (valor === '') test.marcas[indice] = null;
+            else { const num = parseFloat(valor); test.marcas[indice] = isNaN(num) ? null : num; }
+
+            if (charts[testId]) { charts[testId].data.datasets[0].data = test.marcas; charts[testId].update('none'); }
+            const resumen = document.getElementById('resumen-' + testId);
+            if (resumen) resumen.innerHTML = calcularResumen(test);
+            const destacado = document.getElementById('destacado-' + testId);
+            if (destacado) destacado.innerHTML = calcularPanelDestacado(test);
+            // Guardado automático (debounced)
+            programarGuardado();
+        }
+
+        function guardarMarcas(testId) {
+            const test = tests.find(t => t.id === testId);
+            if (!test) return;
+            guardarDatos();
+            mostrarToast('Marcas guardadas para "' + test.nombre + '"', 'exito');
+        }
+
+        // Auto-guardado con debounce (evita spam a Firestore)
+        let timerGuardado = null;
+        function programarGuardado() {
+            if (timerGuardado) clearTimeout(timerGuardado);
+            timerGuardado = setTimeout(() => guardarDatos(), 1500);
+        }
+
+        // ============================================================
+        //  ELIMINAR
+        // ============================================================
+        function solicitarEliminar(testId) {
+            const test = tests.find(t => t.id === testId);
+            if (!test) return;
+            testAEliminar = testId;
+            document.getElementById('nombre-eliminar').textContent = '"' + test.nombre + '"';
+            document.getElementById('modal-eliminar').classList.add('activo');
+        }
+        function cerrarModalEliminar() { document.getElementById('modal-eliminar').classList.remove('activo'); testAEliminar = null; }
+        function confirmarEliminar() {
+            if (!testAEliminar) return;
+            const test = tests.find(t => t.id === testAEliminar);
+            const nombre = test ? test.nombre : '';
+            tests = tests.filter(t => t.id !== testAEliminar);
+            if (charts[testAEliminar]) { charts[testAEliminar].destroy(); delete charts[testAEliminar]; }
+            guardarDatos();
+            cerrarModalEliminar();
+            renderizarTests();
+            mostrarToast('Test "' + nombre + '" eliminado', 'exito');
+        }
+
+        // ============================================================
+        //  EXPORTACIÓN
+        // ============================================================
+        function exportarCSV(testId) {
+            const test = tests.find(t => t.id === testId);
+            if (!test) return;
+            const filas = [['Día', 'Marca (' + test.unidad + ')']];
+            test.etiquetas.forEach((dia, i) => { filas.push([dia, test.marcas[i] !== null ? test.marcas[i] : '']); });
+            const promedio = calcularPromedio(test);
+            const mejor = calcularMejorDia(test);
+            filas.push([]);
+            filas.push(['Marca promedio', promedio !== null ? promedio.toFixed(2) : '']);
+            filas.push(['Mejor día', mejor ? mejor.dia + ' (' + mejor.valor + ' ' + test.unidad + ')' : '']);
+            filas.push(['Atleta', usuarioActual ? usuarioActual.nombre : '']);
+            const csv = filas.map(f => f.map(c => '"' + String(c).replace(/"/g, '""') + '"').join(',')).join('\n');
+            const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
+            descargarBlob(blob, sanitizarNombre(test.nombre) + '.csv');
+            mostrarToast('CSV exportado', 'exito');
+        }
+
+        function exportarPDF(testId) {
+            const test = tests.find(t => t.id === testId);
+            if (!test) return;
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+            const anchoPagina = doc.internal.pageSize.getWidth();
+
+            doc.setFillColor(0, 155, 58); doc.rect(0, 0, anchoPagina, 8, 'F');
+            doc.setFillColor(254, 209, 0); doc.rect(0, 8, anchoPagina, 3, 'F');
+            doc.setFillColor(0, 39, 118); doc.rect(0, 11, anchoPagina, 5, 'F');
+
+            doc.setTextColor(26, 26, 26);
+            doc.setFontSize(20); doc.setFont('helvetica', 'bold'); doc.text('Tester_Vesubio', 14, 28);
+            doc.setFontSize(10); doc.setFont('helvetica', 'normal'); doc.setTextColor(100); doc.text('Reporte de test de atletismo', 14, 34);
+
+            const fecha = new Date().toLocaleDateString('es-ES', { year: 'numeric', month: 'long', day: 'numeric' });
+            doc.setFontSize(9);
+            doc.text('Atleta: ' + (usuarioActual ? usuarioActual.nombre : '-'), anchoPagina - 14, 28, { align: 'right' });
+            doc.text('Fecha: ' + fecha, anchoPagina - 14, 34, { align: 'right' });
+            doc.setDrawColor(220); doc.line(14, 38, anchoPagina - 14, 38);
+
+            let y = 48;
+            doc.setTextColor(0, 39, 118); doc.setFontSize(16); doc.setFont('helvetica', 'bold'); doc.text(test.nombre, 14, y);
+            y += 6;
+            doc.setFontSize(10); doc.setFont('helvetica', 'normal'); doc.setTextColor(80);
+            const tipoTexto = { 'metros': 'Distancia (m)', 'segundos': 'Tiempo (s)', 'otro': test.unidad }[test.tipo];
+            doc.text('Tipo: ' + tipoTexto + '   |   Dias: ' + test.dias + '   |   Inicio: Dia ' + test.inicio, 14, y);
+
+            y += 10;
+            const promedio = calcularPromedio(test);
+            const mejor = calcularMejorDia(test);
+            doc.setFillColor(0, 155, 58); doc.roundedRect(14, y, 88, 26, 3, 3, 'F');
+            doc.setFillColor(0, 39, 118); doc.roundedRect(anchoPagina - 102, y, 88, 26, 3, 3, 'F');
+            doc.setTextColor(255, 255, 255);
+            doc.setFontSize(8); doc.setFont('helvetica', 'normal'); doc.text('MEJOR DIA', 18, y + 7);
+            doc.setFontSize(16); doc.setFont('helvetica', 'bold'); doc.text(mejor ? (mejor.valor + ' ' + test.unidad) : '-', 18, y + 16);
+            doc.setFontSize(8); doc.setFont('helvetica', 'normal'); doc.text(mejor ? mejor.dia : 'Sin registros', 18, y + 22);
+            doc.text('MARCA PROMEDIO', anchoPagina - 98, y + 7);
+            doc.setFontSize(16); doc.setFont('helvetica', 'bold'); doc.text(promedio !== null ? promedio.toFixed(2) + ' ' + test.unidad : '-', anchoPagina - 98, y + 16);
+
+            y += 36;
+            doc.setTextColor(0, 39, 118); doc.setFontSize(12); doc.setFont('helvetica', 'bold'); doc.text('Evolucion de marcas', 14, y);
+            y += 4;
+            if (charts[testId]) {
+                try { const imgData = charts[testId].toBase64Image('image/png', 1); doc.addImage(imgData, 'PNG', 14, y, anchoPagina - 28, 80); y += 84; }
+                catch (e) { doc.text('(No se pudo generar la grafica)', 14, y + 10); y += 20; }
+            }
+            const bodyTabla = test.etiquetas.map((dia, i) => { const m = test.marcas[i]; return [dia, m !== null ? (m + ' ' + test.unidad) : '-']; });
+            doc.autoTable({ startY: y, head: [['Dia', 'Marca (' + test.unidad + ')']], body: bodyTabla, theme: 'grid',
+                headStyles: { fillColor: [0, 39, 118], fontSize: 10 }, bodyStyles: { fontSize: 9 },
+                alternateRowStyles: { fillColor: [245, 250, 245] }, margin: { left: 14, right: 14 } });
+            let finalY = doc.lastAutoTable ? doc.lastAutoTable.finalY : (y + 40);
+            doc.setFontSize(8); doc.setTextColor(150); doc.text('Generado por Tester_Vesubio', anchoPagina / 2, finalY + 12, { align: 'center' });
+            doc.save(sanitizarNombre(test.nombre) + '_reporte.pdf');
+            mostrarToast('PDF exportado', 'exito');
+        }
+
+        // ============================================================
+        //  UTILIDADES
+        // ============================================================
+        function descargarBlob(blob, nombreArchivo) {
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url; a.download = nombreArchivo;
+            document.body.appendChild(a); a.click(); document.body.removeChild(a);
+            setTimeout(() => URL.revokeObjectURL(url), 1000);
+        }
+        function sanitizarNombre(nombre) { return nombre.replace(/[^\w\sáéíóúñÁÉÍÓÚÑ-]/gi, '').trim().replace(/\s+/g, '_') || 'test'; }
+        function escapeHtml(texto) { if (texto === null || texto === undefined) return ''; const div = document.createElement('div'); div.textContent = String(texto); return div.innerHTML; }
+
+        window.addEventListener('beforeunload', () => { if (usuarioActual) guardarDatos(); });
+
+        document.addEventListener('keydown', e => { if (e.key === 'Escape') { cerrarModalCrear(); cerrarModalEliminar(); } });
+        document.querySelectorAll('.modal-overlay').forEach(overlay => {
+            overlay.addEventListener('click', e => { if (e.target === overlay) overlay.classList.remove('activo'); });
+        });
+
+        // ============================================================
+        //  INICIALIZACIÓN
+        // ============================================================
+        function iniciar() {
+            const fbListo = inicializarFirebase();
+            if (fbListo) escucharAuthFirebase();
+
+            // ¿Hay sesión de Firebase activa?
+            if (fbListo && firebase.auth().currentUser) {
+                return; // onAuthStateChanged se encarga
+            }
+
+            // ¿Hay sesión local guardada?
+            const guardado = localStorage.getItem('tester_vesubio_user');
+            if (guardado) {
+                try {
+                    usuarioActual = JSON.parse(guardado);
+                    mostrarApp();
+                    return;
+                } catch (e) {}
+            }
+            mostrarLogin();
+        }
+
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', iniciar);
+        } else {
+            iniciar();
+        }
+    </script>
+</body>
+</html>
