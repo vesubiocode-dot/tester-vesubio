@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -556,10 +557,12 @@
                     if (doc.exists && doc.data().tests) {
                         tests = doc.data().tests;
                     } else {
-                        // Migrar datos locales existentes a la nube
+                        // Documento nuevo o vacío: la conexión anda, solo no hay datos aún
                         cargarTestsLocal();
                         if (tests.length > 0) await guardarDatos();
                     }
+                    // Conexión exitosa a Firestore → mostrar online
+                    actualizarEstadoSync(true);
                     // Escuchar cambios en tiempo real
                     suscribirCambios();
                 } catch (e) {
