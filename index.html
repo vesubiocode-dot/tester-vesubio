@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -519,7 +520,7 @@
         // Guardado principal (decide nube o local)
         async function guardarDatos() {
             if (!usuarioActual) return;
-            if (firebaseOK && db && usuarioActual.uid) {
+            if (usuarioTieneSesionFirebase()) {
                 // NUBE: guarda el documento completo del usuario
                 try {
                     await db.collection('usuarios').doc(usuarioActual.uid).set({
@@ -541,9 +542,16 @@
             }
         }
 
+        // Determinar si el usuario actual tiene sesión real de Firebase
+        function usuarioTieneSesionFirebase() {
+            return firebaseOK && firebase.auth().currentUser &&
+                   usuarioActual && usuarioActual.proveedor === 'firebase' &&
+                   usuarioActual.uid === firebase.auth().currentUser.uid;
+        }
+
         // Cargar datos (nube o local)
         async function cargarDatos() {
-            if (firebaseOK && db && usuarioActual && usuarioActual.uid) {
+            if (usuarioTieneSesionFirebase()) {
                 try {
                     const doc = await db.collection('usuarios').doc(usuarioActual.uid).get();
                     if (doc.exists && doc.data().tests) {
@@ -558,9 +566,12 @@
                 } catch (e) {
                     console.warn('Error leyendo nube:', e);
                     cargarTestsLocal();
+                    actualizarEstadoSync(false);
                 }
             } else {
+                // Modo demo o sin Firebase: solo local
                 cargarTestsLocal();
+                actualizarEstadoSync(false);
             }
             renderizarTests();
         }
