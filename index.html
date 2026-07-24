@@ -505,7 +505,7 @@
         // --- Persistencia ---
         function claveLocal() {
             return usuarioActual && usuarioActual.email
-                ? 'tester_vesubio_tests_' + btoa(unescape(encodeURIComponent(usuarioActual.email)))
+                ? 'tester_vesubio_tests_' + btoa(usuarioActual.email)
                 : 'tester_vesubio_tests_demo';
         }
 
@@ -557,6 +557,7 @@
             // 1. Cargar de localStorage siempre primero (respuesta instantánea)
             cargarTestsLocal();
             renderizarTests();
+            const testsLocales = tests.length;
 
             // 2. Si hay sesión Firebase, sincronizar con la nube
             if (usuarioTieneSesionFirebase()) {
@@ -569,19 +570,33 @@
                             tests = datosNube;
                             guardarLocal();
                             renderizarTests();
+                            mostrarToast(testsLocales > 0
+                                ? 'Sincronizado: ' + tests.length + ' test(s) desde la nube'
+                                : 'Cargados ' + tests.length + ' test(s) desde la nube', 'exito');
+                        } else if (testsLocales > 0) {
+                            mostrarToast(testsLocales + ' test(s) cargados del navegador', 'exito');
                         }
                     } else if (tests.length > 0) {
                         // Hay datos locales pero no en la nube: migrarlos
                         await guardarDatos();
+                        mostrarToast(tests.length + ' test(s) migrados a la nube', 'exito');
+                    } else if (testsLocales === 0) {
+                        mostrarToast('Sin tests. Crea tu primer test de entrenamiento.');
                     }
                     actualizarEstadoSync(true);
                     suscribirCambios();
                 } catch (e) {
                     console.warn('Error leyendo nube (usando datos locales):', e);
                     actualizarEstadoSync(false);
+                    if (testsLocales > 0) {
+                        mostrarToast(testsLocales + ' test(s) en modo local (sin conexión a la nube)');
+                    }
                 }
             } else {
                 actualizarEstadoSync(false);
+                if (testsLocales > 0) {
+                    mostrarToast(testsLocales + ' test(s) en modo local');
+                }
             }
         }
 
