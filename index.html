@@ -775,7 +775,7 @@
             if (tipoSeleccionado.tipo !== 'otro') inputUnidad.value = '';
         }
 
-        function crearTest() {
+        async function crearTest() {
             const nombre = document.getElementById('input-nombre').value.trim();
             const dias = parseInt(document.getElementById('input-dias').value);
             const inicio = parseInt(document.getElementById('input-inicio').value);
@@ -795,9 +795,10 @@
                 nombre, tipo: tipoSeleccionado.tipo, unidad, dias, inicio,
                 etiquetas, marcas: new Array(dias).fill(null)
             });
-            guardarDatos();
             cerrarModalCrear();
             renderizarTests();
+            // Guardar inmediatamente y esperar a que termine
+            await guardarDatos();
             mostrarToast('Test "' + nombre + '" creado', 'exito');
         }
 
@@ -996,7 +997,7 @@
         let timerGuardado = null;
         function programarGuardado() {
             if (timerGuardado) clearTimeout(timerGuardado);
-            timerGuardado = setTimeout(() => guardarDatos(), 1500);
+            timerGuardado = setTimeout(() => guardarDatos(), 800);
         }
 
         // ============================================================
@@ -1126,16 +1127,24 @@
             const fbListo = inicializarFirebase();
             if (fbListo) escucharAuthFirebase();
 
-            // ¿Hay sesión de Firebase activa?
+            // ¿Hay sesión de Firebase activa YA?
             if (fbListo && firebase.auth().currentUser) {
                 return; // onAuthStateChanged se encarga
             }
 
-            // ¿Hay sesión local guardada?
+            // ¿Hay sesión local guardada de Firebase? (viene de una visita anterior)
             const guardado = localStorage.getItem('tester_vesubio_user');
             if (guardado) {
                 try {
-                    usuarioActual = JSON.parse(guardado);
+                    const u = JSON.parse(guardado);
+                    // Si el usuario era de Firebase, esperar a que auth restaure la sesión
+                    if (fbListo && u.proveedor === 'firebase') {
+                        // Firebase está restaurando... mostrar spinner mientras tanto
+                        // onAuthStateChanged va a disparar mostrarApp() cuando termine
+                        return;
+                    }
+                    // Si es demo, cargar directo
+                    usuarioActual = u;
                     mostrarApp();
                     return;
                 } catch (e) {}
