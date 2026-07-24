@@ -517,11 +517,15 @@
             localStorage.setItem(claveLocal(), JSON.stringify(tests));
         }
 
-        // Guardado principal (decide nube o local)
+        // Guardado principal: SIEMPRE guarda en localStorage primero (instantáneo),
+        // y además en Firestore si está disponible (nube).
+        // Así al recargar la página los datos aparecen al instante.
         async function guardarDatos() {
             if (!usuarioActual) return;
+            // 1. Guardar en localStorage siempre (respaldo inmediato)
+            guardarLocal();
+            // 2. Guardar en Firestore si hay sesión real
             if (usuarioTieneSesionFirebase()) {
-                // NUBE: guarda el documento completo del usuario
                 try {
                     await db.collection('usuarios').doc(usuarioActual.uid).set({
                         nombre: usuarioActual.nombre,
@@ -532,12 +536,10 @@
                     }, { merge: true });
                     actualizarEstadoSync(true);
                 } catch (e) {
-                    console.warn('Error guardando en nube, usando local:', e);
-                    guardarLocal();
+                    console.warn('Error guardando en nube (datos seguros en local):', e);
                     actualizarEstadoSync(false);
                 }
             } else {
-                guardarLocal();
                 actualizarEstadoSync(false);
             }
         }
@@ -549,33 +551,38 @@
                    usuarioActual.uid === firebase.auth().currentUser.uid;
         }
 
-        // Cargar datos (nube o local)
+        // Cargar datos: primero localStorage (instantáneo), luego Firestore (nube).
+        // Así los datos aparecen inmediatamente al recargar la página.
         async function cargarDatos() {
+            // 1. Cargar de localStorage siempre primero (respuesta instantánea)
+            cargarTestsLocal();
+            renderizarTests();
+
+            // 2. Si hay sesión Firebase, sincronizar con la nube
             if (usuarioTieneSesionFirebase()) {
                 try {
                     const doc = await db.collection('usuarios').doc(usuarioActual.uid).get();
                     if (doc.exists && doc.data().tests) {
-                        tests = doc.data().tests;
-                    } else {
-                        // Documento nuevo o vacío: la conexión anda, solo no hay datos aún
-                        cargarTestsLocal();
-                        if (tests.length > 0) await guardarDatos();
+                        const datosNube = doc.data().tests;
+                        // Si la nube tiene datos, usarlos y actualizar local
+                        if (datosNube.length > 0 || tests.length === 0) {
+                            tests = datosNube;
+                            guardarLocal();
+                            renderizarTests();
+                        }
+                    } else if (tests.length > 0) {
+                        // Hay datos locales pero no en la nube: migrarlos
+                        await guardarDatos();
                     }
-                    // Conexión exitosa a Firestore → mostrar online
                     actualizarEstadoSync(true);
-                    // Escuchar cambios en tiempo real
                     suscribirCambios();
                 } catch (e) {
-                    console.warn('Error leyendo nube:', e);
-                    cargarTestsLocal();
+                    console.warn('Error leyendo nube (usando datos locales):', e);
                     actualizarEstadoSync(false);
                 }
             } else {
-                // Modo demo o sin Firebase: solo local
-                cargarTestsLocal();
                 actualizarEstadoSync(false);
             }
-            renderizarTests();
         }
 
         // Listener en tiempo real (sincroniza entre dispositivos)
@@ -1127,24 +1134,12 @@
             const fbListo = inicializarFirebase();
             if (fbListo) escucharAuthFirebase();
 
-            // ¿Hay sesión de Firebase activa YA?
-            if (fbListo && firebase.auth().currentUser) {
-                return; // onAuthStateChanged se encarga
-            }
-
-            // ¿Hay sesión local guardada de Firebase? (viene de una visita anterior)
+            // ¿Hay sesión guardada? Cargar directo (localStorage tiene
+            // los datos al instante, Firestore sincroniza después).
             const guardado = localStorage.getItem('tester_vesubio_user');
             if (guardado) {
                 try {
-                    const u = JSON.parse(guardado);
-                    // Si el usuario era de Firebase, esperar a que auth restaure la sesión
-                    if (fbListo && u.proveedor === 'firebase') {
-                        // Firebase está restaurando... mostrar spinner mientras tanto
-                        // onAuthStateChanged va a disparar mostrarApp() cuando termine
-                        return;
-                    }
-                    // Si es demo, cargar directo
-                    usuarioActual = u;
+                    usuarioActual = JSON.parse(guardado);
                     mostrarApp();
                     return;
                 } catch (e) {}
